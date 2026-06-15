@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serviço de Usuários</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8 font-sans">
+    <div class="max-w-xl mx-auto space-y-8">
+        <h1 class="text-3xl font-bold text-center text-blue-600">Serviço de Usuários (/users)</h1>
+
+        <!-- Register -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Criar Usuário</h2>
+            <form id="registerForm" class="space-y-3">
+                <input type="text" id="regName" placeholder="Nome" class="w-full border p-2 rounded" required>
+                <input type="email" id="regEmail" placeholder="Email" class="w-full border p-2 rounded" required>
+                <input type="password" id="regPass" placeholder="Senha" class="w-full border p-2 rounded" required>
+                <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Registrar</button>
+            </form>
+        </div>
+
+        <!-- Login -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Login (Salva JWT no Navegador)</h2>
+            <form id="loginForm" class="space-y-3">
+                <input type="email" id="logEmail" placeholder="Email" class="w-full border p-2 rounded" required>
+                <input type="password" id="logPass" placeholder="Senha" class="w-full border p-2 rounded" required>
+                <button type="submit" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">Entrar</button>
+            </form>
+            <p id="tokenStatus" class="text-sm mt-3 text-gray-500"></p>
+        </div>
+
+        <!-- Fetch User -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Buscar Usuário por ID</h2>
+            <form id="fetchForm" class="space-y-3">
+                <input type="text" id="fetchId" placeholder="ID do Usuário" class="w-full border p-2 rounded" required>
+                <button type="submit" class="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600">Buscar (Requer Auth)</button>
+            </form>
+            <pre id="fetchResult" class="mt-4 bg-gray-50 p-4 rounded border text-sm overflow-x-auto"></pre>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5001';
+
+        // Helper to update token status
+        function updateTokenStatus() {
+            const token = localStorage.getItem('jwt_token');
+            document.getElementById('tokenStatus').innerText = token ? "🔑 Autenticado (Token salvo no localStorage)" : "Deslogado";
+        }
+        updateTokenStatus();
+
+        document.getElementById('registerForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const res = await fetch(`${API_URL}/users/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    Name: document.getElementById('regName').value,
+                    Email: document.getElementById('regEmail').value,
+                    Password: document.getElementById('regPass').value
+                })
+            });
+            const data = await res.json();
+            alert(res.ok ? "Registrado com sucesso!" : data.message || "Erro ao registrar");
+        };
+
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const res = await fetch(`${API_URL}/users/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    Email: document.getElementById('logEmail').value,
+                    Password: document.getElementById('logPass').value
+                })
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('jwt_token', data.token);
+                updateTokenStatus();
+                alert(`Login efetuado! (Role: ${data.role})`);
+            } else {
+                alert("Credenciais inválidas.");
+            }
+        };
+
+        document.getElementById('fetchForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('fetchId').value;
+            const res = await fetch(`${API_URL}/users/${id}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }
+            });
+            
+            if (res.status === 401) return alert("Não autorizado. Faça login primeiro.");
+            if (res.status === 404) return alert("Usuário não encontrado.");
+            
+            const data = await res.json();
+            document.getElementById('fetchResult').innerText = JSON.stringify(data, null, 2);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serviço de Pedidos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8 font-sans">
+    <div class="max-w-xl mx-auto space-y-8">
+        <h1 class="text-3xl font-bold text-center text-orange-600">Serviço de Pedidos (/orders)</h1>
+
+        <!-- Create Order -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Novo Pedido</h2>
+            <form id="createForm" class="space-y-3">
+                <input type="text" id="userId" placeholder="ID do Usuário" class="w-full border p-2 rounded" required>
+                <input type="text" id="productId" placeholder="ID do Produto" class="w-full border p-2 rounded" required>
+                <input type="number" id="quantity" placeholder="Quantidade" class="w-full border p-2 rounded" value="1" min="1" required>
+                <button type="submit" class="w-full bg-orange-500 text-white p-2 rounded hover:bg-orange-600">Criar Pedido (Requer Auth)</button>
+            </form>
+        </div>
+
+        <!-- Fetch Orders -->
+        <div class="bg-white p-6 rounded-lg shadow">
+            <h2 class="text-xl font-semibold mb-4">Meus Pedidos</h2>
+            <form id="fetchForm" class="flex space-x-2 mb-4">
+                <input type="text" id="fetchUserId" placeholder="ID do Usuário" class="flex-1 border p-2 rounded" required>
+                <button type="submit" class="bg-gray-700 text-white px-4 py-2 rounded">Buscar (Requer Auth)</button>
+            </form>
+            <ul id="ordersList" class="space-y-2 text-sm"></ul>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5003';
+
+        document.getElementById('createForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('jwt_token');
+            if (!token) return alert("Realize o login no Serviço de Usuários primeiro.");
+
+            const res = await fetch(`${API_URL}/orders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    UserId: document.getElementById('userId').value,
+                    ProductId: document.getElementById('productId').value,
+                    Quantity: parseInt(document.getElementById('quantity').value)
+                })
+            });
+
+            if (res.status === 401) return alert("Token inválido ou expirado.");
+            
+            if (res.ok) {
+                alert("Pedido realizado com sucesso!");
+                document.getElementById('createForm').reset();
+            }
+        };
+
+        document.getElementById('fetchForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('jwt_token');
+            if (!token) return alert("Realize o login no Serviço de Usuários primeiro.");
+
+            const userId = document.getElementById('fetchUserId').value;
+            const res = await fetch(`${API_URL}/orders/${userId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.status === 401) return alert("Token inválido ou expirado.");
+
+            const data = await res.json();
+            const list = document.getElementById('ordersList');
+            list.innerHTML = '';
+            
+            if (data.length === 0) {
+                list.innerHTML = '<li class="text-gray-500">Nenhum pedido encontrado.</li>';
+                return;
+            }
+
+            data.forEach(o => {
+                const date = new Date(o.orderDate).toLocaleString();
+                list.innerHTML += `<li class="p-3 bg-orange-50 rounded border border-orange-200">
+                    <strong>ID Pedido:</strong> ${o.id} <br>
+                    <strong>Produto:</strong> ${o.productId} (Qtd: ${o.quantity}) <br>
+                    <span class="text-xs text-gray-500">Data: ${date}</span>
+                </li>`;
+            });
+        };
+    </script>
+</body>
+</html>
